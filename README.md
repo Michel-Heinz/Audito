@@ -60,7 +60,7 @@ type(FG_t)  :: f
 f = SQRT((x1-x2)**2 + (y1-y2)**2 + (z1-z2)**2)
 f%print()
 ```
-This print for the FG_t type the function value and its gradient (for FGH_t and FGL_t it also prints the Hessian and Lapalcian respectively)
+For the FG_t type, this print the function value and its gradient (for FGH_t and FGL_t it also prints the Hessian and Laplacian respectively)
 
 value:
 
