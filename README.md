@@ -89,7 +89,7 @@ iniGrad = 0._r8 !Has size 6
 
 do i = 1, SIZE(x)
     iniGrad(i) = 1._r8
-    x(i) = FGH_t(0._r8, iniGrad, 0._r8) !x has size 6 and represents the positons vector (type(FGL_t) :: x(6))
+    x(i) = FGL_t(0._r8, iniGrad, 0._r8) !x has size 6 and represents the positons vector (type(FGL_t) :: x(6))
     iniGrad = 0._r8
 end do
 ```
