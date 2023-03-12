@@ -19,7 +19,7 @@ Let's define $x$ and $y$ as the new type FG_t or FGX_t (where X is either H or L
 
 The FG_t or FGX_t types currently can only be defined for 64 bit reals! This will however be expanded in future releases.
 ## How does it work?
-Overloading the operators enables a very easy implementation of functions! The comlicated part is the initialization of the variables. Consider the following example:
+Overloading the operators enables a very easy implementation of functions! The comlicated part is the initialization of the variables. Please consider the following example:
 
 We have two atoms, each with $x$, $y$, and $z$ coordinates. I define a position vector $\vec{x}$ as follows:
 
@@ -43,7 +43,7 @@ $y_2$%f = 0
 
 $y_2$%g = $\left(0, 0, 0, 0, 1, 0\right)^\text{T}$
 
-For each variable, its component in the gradient is set to 1 and the rest to zero. This is the result of the function $f(\vec{x})$, of which we only that it depends on these 6 variable (therefore the gradient of each variable has 6 components). Thus, we need to tell audito, the component of the gradient that belongs to each variable and set it to 1. The following fortran code initializes the gradients of each of the variables.
+For each variable, its component in the gradient is set to 1 and the rest to zero. This is the result of the function $f(\vec{x})$, of which we only know that it depends on these 6 variable (therefore the gradient of each variable has 6 components). Thus, we need to tell audito, the component of the gradient that belongs to each variable and set it to 1. The following fortran code initializes the gradients of each of the variables.
 ```
 iniGrad = 0._r8 !Has size 6
 
