@@ -1,12 +1,29 @@
+! Copyright (C) 2023 Michel Heinz
+
+#  define _PASTE(X) X
+#  define _CAT2(X,Y) _PASTE(X)Y
+#  define _CAT3(X,Y,Z) _CAT2(_CAT2(X,Y),Z)
+
+
 module FGH_m
-    use, intrinsic :: ISO_FORTRAN_ENV, only: r8 => REAL64
+    use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64, REAL32, REAL128, INT8, INT16, INT32, INT64
     use, intrinsic :: ieee_arithmetic, only: ieee_value, IEEE_NEGATIVE_INF, IEEE_QUIET_NAN
 
     implicit none
 
     private
-    public :: FGH_t, operator(+), operator(-), operator(*), r8, operator(**), operator(/), ABS, SQRT, EXP, LOG, COS, SIN
+    public :: FGH_t, operator(+), operator(-), operator(*), operator(**), operator(/), ABS, SQRT, EXP, LOG, COS, SIN
     public :: TAN, INT, NINT, FRACTION, REAL, FLOOR
+    public :: i1, i2, i4, i8, r4, r8, r16
+
+
+    integer(INT32), parameter :: i1 = INT8
+    integer(INT32), parameter :: i2 = INT16
+    integer(INT32), parameter :: i4 = INT32
+    integer(INT32), parameter :: i8 = INT64
+    integer(INT32), parameter :: r4 = REAL32
+    integer(INT32), parameter :: r8 = REAL64
+    integer(INT32), parameter :: r16 = REAL128
 
     type FGH_t
         real(r8) :: f
@@ -24,6 +41,8 @@ module FGH_m
         generic :: operator(*) => FGH_MulSame
         procedure, private :: FGH_DivSame
         generic :: operator(/) => FGH_DivSame
+        procedure, private :: FGH_Pow
+        generic :: operator(**) => FGH_Pow
         procedure, private :: FGH_Equal
         generic :: operator(==) => FGH_Equal
         procedure, private :: FGH_NotEqual
@@ -45,23 +64,38 @@ module FGH_m
     end type FGH_t
 
     interface operator(+)
-        module procedure :: FGH_AddScalarObj, FGH_AddObjScalar
+        module procedure :: FGH_AddScalarObj_r8, FGH_AddObjScalar_r8, FGH_AddScalarObj_r4, FGH_AddObjScalar_r4
+        module procedure :: FGH_AddScalarObj_r16, FGH_AddObjScalar_r16, FGH_AddScalarObj_i1, FGH_AddObjScalar_i1
+        module procedure :: FGH_AddScalarObj_i2, FGH_AddObjScalar_i2, FGH_AddScalarObj_i4, FGH_AddObjScalar_i4
+        module procedure :: FGH_AddScalarObj_i8, FGH_AddObjScalar_i8
     end interface
 
     interface operator(-)
-        module procedure :: FGH_SubScalarObj, FGH_SubObjScalar
+        module procedure :: FGH_SubScalarObj_r8, FGH_SubObjScalar_r8, FGH_SubScalarObj_r4, FGH_SubObjScalar_r4
+        module procedure :: FGH_SubScalarObj_r16, FGH_SubObjScalar_r16, FGH_SubScalarObj_i1, FGH_SubObjScalar_i1
+        module procedure :: FGH_SubScalarObj_i2, FGH_SubObjScalar_i2, FGH_SubScalarObj_i4, FGH_SubObjScalar_i4
+        module procedure :: FGH_SubScalarObj_i8, FGH_SubObjScalar_i8
     end interface
 
     interface operator(*)
-        module procedure :: FGH_MulScalarObj, FGH_MulObjScalar
+        module procedure :: FGH_MulScalarObj_r8, FGH_MulObjScalar_r8, FGH_MulScalarObj_r4, FGH_MulObjScalar_r4
+        module procedure :: FGH_MulScalarObj_r16, FGH_MulObjScalar_r16, FGH_MulScalarObj_i1, FGH_MulObjScalar_i1
+        module procedure :: FGH_MulScalarObj_i2, FGH_MulObjScalar_i2, FGH_MulScalarObj_i4, FGH_MulObjScalar_i4
+        module procedure :: FGH_MulScalarObj_i8, FGH_MulObjScalar_i8
     end interface
 
     interface operator(/)
-        module procedure :: FGH_DivScalarObj, FGH_DivObjScalar
+        module procedure :: FGH_DivScalarObj_r8, FGH_DivObjScalar_r8, FGH_DivScalarObj_r4, FGH_DivObjScalar_r4
+        module procedure :: FGH_DivScalarObj_r16, FGH_DivObjScalar_r16, FGH_DivScalarObj_i1, FGH_DivObjScalar_i1
+        module procedure :: FGH_DivScalarObj_i2, FGH_DivObjScalar_i2, FGH_DivScalarObj_i4, FGH_DivObjScalar_i4
+        module procedure :: FGH_DivScalarObj_i8, FGH_DivObjScalar_i8
     end interface
 
     interface operator(**)
-        module procedure :: FGH_Pow_int, FGH_Pow_real
+        module procedure :: FGH_PowObjScalar_r4, FGH_PowObjScalar_r8, FGH_PowObjScalar_r16, FGH_PowObjScalar_i1
+        module procedure :: FGH_PowObjScalar_i2, FGH_PowObjScalar_i4, FGH_PowObjScalar_i8
+        module procedure :: FGH_PowScalarObj_r4, FGH_PowScalarObj_r8, FGH_PowScalarObj_r16, FGH_PowScalarObj_i1
+        module procedure :: FGH_PowScalarObj_i2, FGH_PowScalarObj_i4, FGH_PowScalarObj_i8
     end interface
 
     interface ABS
@@ -112,7 +146,23 @@ module FGH_m
         module procedure :: FGH_real_real
     end interface
 
+    interface FGH_t
+        module procedure :: constructor1
+    end interface FGH_t
+
 contains
+
+    pure type(FGH_t) function constructor1(f, g, h) result(new)
+        real(r8), intent(in) :: f, g(:), h(:,:)
+
+        new%f = f
+        if (SIZE(h(1,:)) /= SIZE(h(:,1))) ERROR STOP 'FGH: Hessian must be a square matrix!'
+        if (SIZE(g) /= SIZE(h(:,1)) .or. SIZE(g) /= SIZE(h(1,:))) ERROR STOP 'FGH: gradient and Hessian have different&
+                sizes!'
+        new%g = g
+        new%h = h
+    end function constructor1
+
 
     subroutine FGH_Print(this, iu)
         class(FGH_t), intent(in)   :: this
@@ -147,8 +197,19 @@ contains
 
     elemental type(FGH_t) function FGH_DivSame(this, that) result(new)
         class(FGH_t), intent(in) :: this, that
+        !TODO needs testing!
+        real(r8)    :: outxy(SIZE(this%g), SIZE(this%g)), outyy(SIZE(this%g), SIZE(this%g))
+        integer     :: a
 
-        new = this%FGH_MulSame(FGH_Pow_int(that, -1))
+
+        a = SIZE(this%g)
+        outxy = SPREAD(this%g, 2, a) * SPREAD(that%g, 1, a)
+        outyy = SPREAD(that%g, 2, a) * SPREAD(that%g, 1, a)
+        new%f = this%f / that%f
+        new%g = ((this%g * that%f) - (this%f * that%g)) / that%f**2
+        new%h = (this%h*that%f**2 - TRANSPOSE(outxy)*that%f - outxy*that%f + 2*outyy*this%f - that%h*this%f*that%f) / &
+                that%f**3
+
     end function FGH_DivSame
 
 
@@ -156,17 +217,27 @@ contains
         class(FGH_t), intent(in) :: this
 
         if (this%f < 0) then
-            new = -this
+            new%f = -this%f
+            new%g = -this%g
+            new%h = -this%h
         else
-            new = this
+            new%f = this%f
+            new%g = this%g
+            new%h = this%h
         end if
     end function FGH_Abs_real
 
 
     elemental type(FGH_t) function FGH_sqrt_real(this) result(new)
         class(FGH_t), intent(in) :: this
+        real(r8)    :: out(SIZE(this%g), SIZE(this%g))
+        integer     :: a
 
-        new = FGH_pow_real(this, 0.5_r8)
+        a = SIZE(this%g)
+        out = SPREAD(this%g, 2, a) * SPREAD(this%g, 1, a)
+        new%f = SQRT(this%f)
+        new%g = this%g / (2 * new%f)
+        new%h = (this%h * this%f - out) / (4*this%f*new%f)
 
     end function FGH_sqrt_real
 
@@ -178,8 +249,9 @@ contains
 
         a = SIZE(this%g)
         out = SPREAD(this%g, 2, a) * SPREAD(this%g, 1, a)
-        f_new = EXP(this%f)
-        new = FGH_t(f_new, f_new * this%g, f_new * (out + this%h))
+        new%f = EXP(this%f)
+        new%g = new%f * this%g
+        new%h = new%f * (out + this%h)
 
     end function FGH_exp_real
 
@@ -193,8 +265,9 @@ contains
         a = SIZE(this%g)
         if (this%f > 0) then
             out = SPREAD(this%g, 2, a) * SPREAD(this%g, 1, a)
-            f_new = LOG(this%f)
-            new = FGH_t(f_new, this%g / this%f, (this%f * this%h - out) / this%f**2)
+            new%f = LOG(this%f)
+            new%g = this%g / this%f
+            new%h = (this%f * this%h - out) / this%f**2
         else
             dummy1 = IEEE_VALUE(1._r8, IEEE_QUIET_NAN)
             dummy2 = IEEE_VALUE(1._r8, IEEE_QUIET_NAN)
@@ -211,8 +284,9 @@ contains
 
         a = SIZE(this%g)
         out = SPREAD(this%g, 2, a) * SPREAD(this%g, 1, a)
-        f_new = COS(this%f)
-        new = FGH_t(f_new, - SIN(this%f) * this%g, -f_new * out - SIN(this%f) * this%h)
+        new%f = COS(this%f)
+        new%g = - SIN(this%f) * this%g
+        new%h = -new%f * out - SIN(this%f) * this%h
 
     end function FGH_cos_real
 
@@ -224,8 +298,9 @@ contains
 
         a = SIZE(this%g)
         out = SPREAD(this%g, 2, a) * SPREAD(this%g, 1, a)
-        f_new = SIN(this%f)
-        new = FGH_t(f_new, this%g * COS(this%f), -f_new * out + COS(this%f) * this%h)
+        new%f = SIN(this%f)
+        new%g = this%g * COS(this%f)
+        new%h =  -new%f * out + COS(this%f) * this%h
 
     end function FGH_sin_real
 
@@ -237,9 +312,10 @@ contains
 
         a = SIZE(this%g)
         out = SPREAD(this%g, 2, a) * SPREAD(this%g, 1, a)
-        f_new = TAN(this%f)
+        new%f = TAN(this%f)
         sec = 1 / cos(this%f)**2
-        new = FGH_t(f_new, this%g * sec, sec * (2 * f_new * out + this%h))
+        new%g = this%g * sec
+        new%h = sec * (2 * new%f * out + this%h)
 
     end function FGH_tan_real
 
@@ -247,7 +323,9 @@ contains
     elemental type(FGH_t) function FGH_int_real(this) result(new)
         class(FGH_t), intent(in) :: this
 
-        new = FGH_t(INT(this%f), this%g, this%h)
+        new%f = INT(this%f)
+        new%g = this%g
+        new%h = this%h
 
     end function FGH_int_real
 
@@ -255,7 +333,9 @@ contains
     elemental type(FGH_t) function FGH_nint_real(this) result(new)
         class(FGH_t), intent(in) :: this
 
-        new = FGH_t(NINT(this%f), this%g, this%h)
+        new%f = NINT(this%f)
+        new%g = this%g
+        new%h = this%h
 
     end function FGH_nint_real
 
@@ -263,7 +343,9 @@ contains
     elemental type(FGH_t) function FGH_floor_real(this) result(new)
         class(FGH_t), intent(in) :: this
 
-        new = FGH_t(FLOOR(this%f), this%g, this%h)
+        new%f = FLOOR(this%f)
+        new%g = this%g
+        new%h = this%h
 
     end function FGH_floor_real
 
@@ -271,7 +353,9 @@ contains
     elemental type(FGH_t) function FGH_fraction_real(this) result(new)
         class(FGH_t), intent(in) :: this
 
-        new = FGH_t(FRACTION(this%f), this%g, this%h)
+        new%f = FRACTION(this%f)
+        new%g = this%g
+        new%h = this%h
 
     end function FGH_fraction_real
 
@@ -279,7 +363,9 @@ contains
     elemental type(FGH_t) function FGH_real_real(this) result(new)
         class(FGH_t), intent(in) :: this
 
-        new = FGH_t(REAL(this%f), this%g, this%h)
+        new%f = REAL(this%f)
+        new%g = this%g
+        new%h = this%h
 
     end function FGH_real_real
 
@@ -287,35 +373,19 @@ contains
     elemental type(FGH_t) function FGH_Div(this, that) result(new)
         class(FGH_t), intent(in) :: this, that
 
-        new = this%FGH_Mul(FGH_Pow_int(that, -1))
+        new = this%FGH_Mul(FGH_PowObjScalar_i1(that, -1_i1))
+
     end function FGH_Div
 
 
-    elemental type(FGH_t) function FGH_DivObjScalar(obj, value) result(new)
-        class(FGH_t), intent(in) :: obj
-        real(r8), intent(in) :: value
-
-        new = FGH_t(obj%f / value, obj%g / value, obj%h / value)
-    end function FGH_DivObjScalar
-
-
-    elemental type(FGH_t) function FGH_DivScalarObj(value, obj) result(new)
-        class(FGH_t), intent(in) :: obj
-        real(r8), intent(in) :: value
-        type(FGH_t) :: temp
-
-        temp = FGH_Pow_int(obj, -1)
-        new = FGH_t(value * temp%f, value * temp%g, value * temp%h)
-    end function FGH_DivScalarObj
-
-
-    pure subroutine FGH_Assign(this, that)
+    elemental subroutine FGH_Assign(this, that)
         class(FGH_t), intent(inout) :: this
         class(FGH_t), intent(in)   :: that
 
         this%f = that%f
         this%g = that%g
         this%h = that%h
+
     end subroutine FGH_Assign
 
 
@@ -372,98 +442,30 @@ contains
     elemental type(FGH_t) function FGH_Neg(this) result(new)
         class(FGH_t), intent(in) :: this
 
-        new = FGH_t(- this%f, - this%g, - this%h)
+        new%f = -this%f
+        new%g = -this%g
+        new%h = -this%h
     end function FGH_Neg
-
-
-    elemental type(FGH_t) function FGH_AddObjScalar(obj, value) result(new)
-        class(FGH_t), intent(in) :: obj
-        real(r8), intent(in) :: value
-
-        new = FGH_t(obj%f + value, obj%g, obj%h)
-    end function FGH_AddObjScalar
-
-
-    elemental type(FGH_t) function FGH_AddScalarObj(value, obj) result(new)
-        real(r8), intent(in) :: value
-        class(FGH_t), intent(in) :: obj
-
-        new = FGH_t(value + obj%f, obj%g, obj%h)
-    end function FGH_AddScalarObj
 
 
     elemental type(FGH_t) function FGH_Add(this, that) result(new)
         class(FGH_t), intent(in) :: this, that
 
-        new = FGH_t(this%f + that%f, this%g + that%g, this%h + that%h)
+        new%f = this%f + that%f
+        new%g = this%g + that%g
+        new%h = this%h + that%h
+
     end function FGH_Add
-
-
-    elemental type(FGH_t) function FGH_Pow_real(this, n) result(new)
-        class(FGH_t), intent(in) :: this
-        real(r8), intent(in) :: n
-        real(r8), dimension(SIZE(this%g), SIZE(this%g)) :: out
-        integer :: a
-
-        a = SIZE(this%g)
-        out = SPREAD(this%g, 2, a) * SPREAD(this%g, 1, a)
-
-        new = FGH_t(this%f ** n, this%f ** (n-1) * n * this%g, &
-                n * ((n-1) * this%f ** (n-2) * out + this%f ** (n-1) * this%h))
-    end function FGH_Pow_real
-
-
-    elemental type(FGH_t) function FGH_Pow_int(this, n) result(new)
-        class(FGH_t), intent(in) :: this
-        integer, intent(in) :: n
-        real(r8), dimension(SIZE(this%g), SIZE(this%g)) :: out
-        integer :: a
-
-        a = SIZE(this%g)
-        out = SPREAD(this%g, 2, a) * SPREAD(this%g, 1, a)
-
-        new = FGH_t(this%f ** n, this%f ** (n-1) * n * this%g, &
-                n * ((n-1) * this%f ** (n-2) * out + this%f ** (n-1) * this%h))
-    end function FGH_Pow_int
-
-
-    elemental type(FGH_t) function FGH_SubObjScalar(obj, value) result(new)
-        class(FGH_t), intent(in) :: obj
-        real(r8), intent(in) :: value
-
-        new = FGH_t(obj%f - value, obj%g, obj%h)
-    end function FGH_SubObjScalar
-
-
-    elemental type(FGH_t) function FGH_SubScalarObj(value, obj) result(new)
-        real(r8), intent(in) :: value
-        class(FGH_t), intent(in) :: obj
-
-        new = FGH_t(value - obj%f, obj%g, obj%h)
-    end function FGH_SubScalarObj
 
 
     elemental type(FGH_t) function FGH_Sub(this, that) result(new)
         class(FGH_t), intent(in) :: this, that
 
-        new = FGH_t(this%f - that%f, this%g - that%g, this%h - that%h)
+        new%f = this%f - that%f
+        new%g = this%g - that%g
+        new%h = this%h - that%h
+
     end function FGH_Sub
-
-
-    elemental type(FGH_t) function FGH_MulObjScalar(obj, value) result(new)
-        class(FGH_t), intent(in) :: obj
-        real(r8), intent(in) :: value
-
-        new = FGH_t(obj%f * value, obj%g * value, obj%h * value)
-    end function FGH_MulObjScalar
-
-
-    elemental type(FGH_t) function FGH_MulScalarObj(value, obj) result(new)
-        real(r8), intent(in) :: value
-        class(FGH_t), intent(in) :: obj
-
-        new = FGH_t(value * obj%f, value * obj%g, value * obj%h)
-    end function FGH_MulScalarObj
 
 
     elemental type(FGH_t) function FGH_Mul(this, that) result(new)
@@ -487,12 +489,106 @@ contains
 
     elemental type(FGH_t) function FGH_MulSame(this, that) result(new)
         class(FGH_t), intent(in) :: this, that
-
         real(r8) :: out(SIZE(this%g), SIZE(that%g))
+        integer :: a
 
-        out = SPREAD(this%g, 2, SIZE(this%g)) * SPREAD(that%g, 1, SIZE(that%g))
+        a = SIZE(this%g)
+        out = SPREAD(this%g, 2, a) * SPREAD(that%g, 1, a)
 
-        new = FGH_t(this%f * that%f, this%f * that%g + that%f * this%g, &
-                this%h * that%f + that%h * this%f + out + TRANSPOSE(out))
+        new%f = this%f * that%f
+        new%g = this%f * that%g + that%f * this%g
+        new%h = this%h * that%f + that%h * this%f + out + TRANSPOSE(out)
+
     end function FGH_MulSame
+
+
+    elemental type(FGH_t) function FGH_Pow(this, that) result(new)
+        class(FGH_t), intent(in) :: this, that
+        real(r8) :: outxy(SIZE(this%g), SIZE(that%g)), outxx(SIZE(this%g), SIZE(that%g))
+        real(r8) :: outyy(SIZE(this%g), SIZE(that%g)), logval, frac
+        integer :: a
+
+        a = SIZE(this%g)
+        outxy = SPREAD(this%g, 2, a) * SPREAD(that%g, 1, a)
+        outxx = SPREAD(this%g, 2, a) * SPREAD(this%g, 1, a)
+        outyy = SPREAD(that%g, 2, a) * SPREAD(that%g, 1, a)
+
+        logval = LOG(this%f)
+        frac = (that%f/this%f)
+        new%f = this%f ** that%f
+        new%g = new%f * (that%g * LOG(this%f) + (that%f / this%f) * this%g)
+        new%h = new%f * (outyy * logval**2 + outxx * frac**2 + frac * logval * (TRANSPOSE(outxy) + outxy) +&
+                that%h * logval + (outxy + TRANSPOSE(outxy)) / this%f - outxx / this%f**2 + this%h * frac)
+
+    end function FGH_Pow
+
+#define _FGH true
+    ! single precision
+#define _F_TYPE FGH_t
+#define _F FGH
+#define _KIND r4
+#define _TYPE real(r4)
+#include "F_functions.inc"
+
+
+
+    ! double precision
+#define _F_TYPE FGH_t
+#define _F FGH
+#define _KIND r8
+#define _TYPE real(r8)
+#include "F_functions.inc"
+
+
+
+    ! quad precision
+#define _F_TYPE FGH_t
+#define _F FGH
+#define _KIND r16
+#define _TYPE real(r16)
+#include "F_functions.inc"
+
+
+
+    ! 8bit int
+#define _INT true
+#define _F_TYPE FGH_t
+#define _F FGH
+#define _KIND i1
+#define _TYPE integer(i1)
+#include "F_functions.inc"
+
+
+
+    ! 16bit int
+#define _INT true
+#define _F_TYPE FGH_t
+#define _F FGH
+#define _KIND i2
+#define _TYPE integer(i2)
+#include "F_functions.inc"
+
+
+
+    ! 32bit int
+#define _INT true
+#define _F_TYPE FGH_t
+#define _F FGH
+#define _KIND i4
+#define _TYPE integer(i4)
+#include "F_functions.inc"
+
+
+
+    ! 64bit int
+#define _INT true
+#define _F_TYPE FGH_t
+#define _F FGH
+#define _KIND i8
+#define _TYPE integer(i8)
+#include "F_functions.inc"
+
+
+#undef _FGH
+
 end module FGH_m

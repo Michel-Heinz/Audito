@@ -1,5 +1,6 @@
+! Copyright (C) 2023 Michel Heinz
+
 program example
-    use, intrinsic :: ISO_FORTRAN_ENV, only: r8 => REAL64
     use :: FGL_m
 
     implicit none
@@ -68,8 +69,8 @@ contains
             print*,''
             if (verbose >= 2) then
                 print*,                   'Iteration:        ', iter
-                print'(a,f13.10)',                   'Energydifference: ', eDiff
-                if (verbose >= 2) print'(a,f13.10)', 'Energy:           ', ePot%f
+                print'(a,f16.10)',                   'Energydifference: ', eDiff
+                if (verbose >= 2) print'(a,f16.10)', 'Energy:           ', ePot%f
             end if
             if (ABS(eDiff) < 1.e-10_r8) then
                 if (verbose >= 1) then
@@ -197,7 +198,7 @@ contains
 
         do i = 1, numAtoms
             do j = i + 1, numAtoms
-                !All the operators have been overwritten to work with the FGH type, therefore formulas can be
+                !All the operators have been overwritten to work with the FGL type, therefore formulas can be
                 !implemented normally!
                 r = SQRT((coords(1 + 3 * (i-1)) - coords(1 + 3 * (j-1))) ** 2 + &
                 (coords(2 + 3 * (i-1)) - coords(2 + 3 * (j-1))) ** 2 + &

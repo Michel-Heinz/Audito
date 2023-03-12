@@ -1,5 +1,6 @@
+! Copyright (C) 2023 Michel Heinz
+
 program example
-    use, intrinsic :: ISO_FORTRAN_ENV, only: r8 => REAL64
     use :: FG_m
 
     implicit none
@@ -68,8 +69,8 @@ contains
             print*,''
             if (verbose >= 2) then
                 print*,                   'Iteration:        ', iter
-                print'(a,f13.10)',                   'Energydifference: ', eDiff
-                if (verbose >= 2) print'(a,f13.10)', 'Energy:           ', ePot%f
+                print'(a,f16.10)',                   'Energydifference: ', eDiff
+                if (verbose >= 2) print'(a,f16.10)', 'Energy:           ', ePot%f
             end if
             if (ABS(eDiff) < 1.e-10_r8) then
                 if (verbose >= 1) then

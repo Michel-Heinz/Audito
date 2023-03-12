@@ -1,12 +1,29 @@
+! Copyright (C) 2023 Michel Heinz
+
+#  define _PASTE(X) X
+#  define _CAT2(X,Y) _PASTE(X)Y
+#  define _CAT3(X,Y,Z) _CAT2(_CAT2(X,Y),Z)
+
+
 module FGL_m
-    use, intrinsic :: ISO_FORTRAN_ENV, only: r8 => REAL64
+    use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64, REAL32, REAL128, INT8, INT16, INT32, INT64
     use, intrinsic :: ieee_arithmetic, only: ieee_value, IEEE_NEGATIVE_INF, IEEE_QUIET_NAN
 
     implicit none
 
     private
-    public :: FGL_t, operator(+), operator(-), operator(*), r8, operator(**), operator(/), ABS, SQRT, EXP, LOG, COS, SIN
+    public :: FGL_t, operator(+), operator(-), operator(*), operator(**), operator(/), ABS, SQRT, EXP, LOG, COS, SIN
     public :: TAN, INT, NINT, FRACTION, REAL, FLOOR
+    public :: i1, i2, i4, i8, r4, r8, r16
+
+
+    integer(INT32), parameter :: i1 = INT8
+    integer(INT32), parameter :: i2 = INT16
+    integer(INT32), parameter :: i4 = INT32
+    integer(INT32), parameter :: i8 = INT64
+    integer(INT32), parameter :: r4 = REAL32
+    integer(INT32), parameter :: r8 = REAL64
+    integer(INT32), parameter :: r16 = REAL128
 
     type FGL_t
         real(r8) :: f
@@ -24,6 +41,8 @@ module FGL_m
         generic :: operator(*) => FGL_MulSame
         procedure, private :: FGL_DivSame
         generic :: operator(/) => FGL_DivSame
+        procedure, private :: FGL_Pow
+        generic :: operator(**) => FGL_Pow
         procedure, private :: FGL_Equal
         generic :: operator(==) => FGL_Equal
         procedure, private :: FGL_NotEqual
@@ -45,23 +64,38 @@ module FGL_m
     end type FGL_t
 
     interface operator(+)
-        module procedure :: FGL_AddScalarObj, FGL_AddObjScalar
+        module procedure :: FGL_AddScalarObj_r8, FGL_AddObjScalar_r8, FGL_AddScalarObj_r4, FGL_AddObjScalar_r4
+        module procedure :: FGL_AddScalarObj_r16, FGL_AddObjScalar_r16, FGL_AddScalarObj_i1, FGL_AddObjScalar_i1
+        module procedure :: FGL_AddScalarObj_i2, FGL_AddObjScalar_i2, FGL_AddScalarObj_i4, FGL_AddObjScalar_i4
+        module procedure :: FGL_AddScalarObj_i8, FGL_AddObjScalar_i8
     end interface
 
     interface operator(-)
-        module procedure :: FGL_SubScalarObj, FGL_SubObjScalar
+        module procedure :: FGL_SubScalarObj_r8, FGL_SubObjScalar_r8, FGL_SubScalarObj_r4, FGL_SubObjScalar_r4
+        module procedure :: FGL_SubScalarObj_r16, FGL_SubObjScalar_r16, FGL_SubScalarObj_i1, FGL_SubObjScalar_i1
+        module procedure :: FGL_SubScalarObj_i2, FGL_SubObjScalar_i2, FGL_SubScalarObj_i4, FGL_SubObjScalar_i4
+        module procedure :: FGL_SubScalarObj_i8, FGL_SubObjScalar_i8
     end interface
 
     interface operator(*)
-        module procedure :: FGL_MulScalarObj, FGL_MulObjScalar
+        module procedure :: FGL_MulScalarObj_r8, FGL_MulObjScalar_r8, FGL_MulScalarObj_r4, FGL_MulObjScalar_r4
+        module procedure :: FGL_MulScalarObj_r16, FGL_MulObjScalar_r16, FGL_MulScalarObj_i1, FGL_MulObjScalar_i1
+        module procedure :: FGL_MulScalarObj_i2, FGL_MulObjScalar_i2, FGL_MulScalarObj_i4, FGL_MulObjScalar_i4
+        module procedure :: FGL_MulScalarObj_i8, FGL_MulObjScalar_i8
     end interface
 
     interface operator(/)
-        module procedure :: FGL_DivScalarObj, FGL_DivObjScalar
+        module procedure :: FGL_DivScalarObj_r8, FGL_DivObjScalar_r8, FGL_DivScalarObj_r4, FGL_DivObjScalar_r4
+        module procedure :: FGL_DivScalarObj_r16, FGL_DivObjScalar_r16, FGL_DivScalarObj_i1, FGL_DivObjScalar_i1
+        module procedure :: FGL_DivScalarObj_i2, FGL_DivObjScalar_i2, FGL_DivScalarObj_i4, FGL_DivObjScalar_i4
+        module procedure :: FGL_DivScalarObj_i8, FGL_DivObjScalar_i8
     end interface
 
     interface operator(**)
-        module procedure :: FGL_Pow_int, FGL_Pow_real
+        module procedure :: FGL_PowObjScalar_r4, FGL_PowObjScalar_r8, FGL_PowObjScalar_r16, FGL_PowObjScalar_i1
+        module procedure :: FGL_PowObjScalar_i2, FGL_PowObjScalar_i4, FGL_PowObjScalar_i8
+        module procedure :: FGL_PowScalarObj_r4, FGL_PowScalarObj_r8, FGL_PowScalarObj_r16, FGL_PowScalarObj_i1
+        module procedure :: FGL_PowScalarObj_i2, FGL_PowScalarObj_i4, FGL_PowScalarObj_i8
     end interface
 
     interface ABS
@@ -143,8 +177,14 @@ contains
 
     elemental type(FGL_t) function FGL_DivSame(this, that) result(new)
         class(FGL_t), intent(in) :: this, that
+!TODO needs testing!
 
-        new = this%FGL_MulSame(FGL_Pow_int(that, -1))
+!        new%f = this%f / that%f
+!        new%g = ((this%g * that%f) - (this%f * that%g)) / that%f**2
+!        new%l = (this%l*that%f**2 - 2*DOT_PRODUCT(this%g, that%g) + 2*DOT_PRODUCT(that%g, that%g)*this%f&
+!        - that%l*this%f*that%f) / that%f**3
+
+        new = this%FGL_MulSame(FGL_PowObjScalar_i1(that, -1_i1))
     end function FGL_DivSame
 
 
@@ -152,9 +192,13 @@ contains
         class(FGL_t), intent(in) :: this
 
         if (this%f < 0) then
-            new = -this
+            new%f = -this%f
+            new%g = -this%g
+            new%l = -this%l
         else
-            new = this
+            new%f = this%f
+            new%g = this%g
+            new%l = this%l
         end if
     end function FGL_Abs_real
 
@@ -162,7 +206,9 @@ contains
     elemental type(FGL_t) function FGL_sqrt_real(this) result(new)
         class(FGL_t), intent(in) :: this
 
-        new = FGL_pow_real(this, 0.5_r8)
+        new%f = SQRT(this%f)
+        new%g = this%g / (2 * new%f)
+        new%l = (this%l * this%f - DOT_PRODUCT(this%g, this%g)) / (4*this%f*new%f)
 
     end function FGL_sqrt_real
 
@@ -171,8 +217,9 @@ contains
         class(FGL_t), intent(in) :: this
         real(r8)    :: f_new
 
-        f_new = EXP(this%f)
-        new = FGL_t(f_new, f_new * this%g, f_new * (DOT_PRODUCT(this%g, this%g) + this%l))
+        new%f = EXP(this%f)
+        new%g = new%f * this%g
+        new%l = new%f * (DOT_PRODUCT(this%g, this%g) + this%l)
 
     end function FGL_exp
 
@@ -183,8 +230,9 @@ contains
         real(r8)    :: dummy1(SIZE(this%g))
 
         if (this%f > 0) then
-            f_new = LOG(this%f)
-            new = FGL_t(f_new, this%g / this%f, -1 / (this%f ** 2) * DOT_PRODUCT(this%g, this%g) + 1 / this%f * this%l)
+            new%f = LOG(this%f)
+            new%g = this%g / this%f
+            new%l = -1 / (this%f ** 2) * DOT_PRODUCT(this%g, this%g) + 1 / this%f * this%l
         else
             dummy1 = IEEE_VALUE(1._r8, IEEE_QUIET_NAN)
             new = FGL_t(IEEE_VALUE(1._r8, IEEE_NEGATIVE_INF), dummy1, IEEE_VALUE(1._r8, IEEE_QUIET_NAN))
@@ -197,8 +245,9 @@ contains
         class(FGL_t), intent(in) :: this
         real(r8)    :: f_new
 
-        f_new = COS(this%f)
-        new = FGL_t(f_new, - SIN(this%f) * this%g, -f_new * DOT_PRODUCT(this%g, this%g) - SIN(this%f) * this%l)
+        new%f = COS(this%f)
+        new%g = - SIN(this%f) * this%g
+        new%l = -new%f * DOT_PRODUCT(this%g, this%g) - SIN(this%f) * this%l
 
     end function FGL_cos_real
 
@@ -207,19 +256,21 @@ contains
         class(FGL_t), intent(in) :: this
         real(r8)    :: f_new
 
-        f_new = SIN(this%f)
-        new = FGL_t(f_new, this%g * COS(this%f), -f_new * DOT_PRODUCT(this%g, this%g) + COS(this%f) * this%l)
+        new%f = SIN(this%f)
+        new%g = this%g * COS(this%f)
+        new%l =  -new%f * DOT_PRODUCT(this%g, this%g) + COS(this%f) * this%l
 
     end function FGL_sin_real
 
 
     elemental type(FGL_t) function FGL_tan_real(this) result(new)
         class(FGL_t), intent(in) :: this
-        real(r8)    :: f_new, sec2
+        real(r8)    :: f_new, sec
 
-        f_new = TAN(this%f)
-        sec2 = 1 / cos(this%f)**2
-        new = FGL_t(f_new, this%g * sec2, sec2 * (2 * f_new * DOT_PRODUCT(this%g, this%g) + this%l))
+        new%f = TAN(this%f)
+        sec = 1 / cos(this%f)**2
+        new%g = this%g * sec
+        new%l = sec * (2 * new%f * DOT_PRODUCT(this%g, this%g) + this%l)
 
     end function FGL_tan_real
 
@@ -227,7 +278,9 @@ contains
     elemental type(FGL_t) function FGL_int_real(this) result(new)
         class(FGL_t), intent(in) :: this
 
-        new = FGL_t(INT(this%f), this%g, this%l)
+        new%f = INT(this%f)
+        new%g = this%g
+        new%l = this%l
 
     end function FGL_int_real
 
@@ -235,7 +288,9 @@ contains
     elemental type(FGL_t) function FGL_nint_real(this) result(new)
         class(FGL_t), intent(in) :: this
 
-        new = FGL_t(NINT(this%f), this%g, this%l)
+        new%f = NINT(this%f)
+        new%g = this%g
+        new%l = this%l
 
     end function FGL_nint_real
 
@@ -243,7 +298,9 @@ contains
     elemental type(FGL_t) function FGL_floor_real(this) result(new)
         class(FGL_t), intent(in) :: this
 
-        new = FGL_t(FLOOR(this%f), this%g, this%l)
+        new%f = FLOOR(this%f)
+        new%g = this%g
+        new%l = this%l
 
     end function FGL_floor_real
 
@@ -251,7 +308,9 @@ contains
     elemental type(FGL_t) function FGL_fraction_real(this) result(new)
         class(FGL_t), intent(in) :: this
 
-        new = FGL_t(FRACTION(this%f), this%g, this%l)
+        new%f = FRACTION(this%f)
+        new%g = this%g
+        new%l = this%l
 
     end function FGL_fraction_real
 
@@ -259,7 +318,9 @@ contains
     elemental type(FGL_t) function FGL_real_real(this) result(new)
         class(FGL_t), intent(in) :: this
 
-        new = FGL_t(REAL(this%f), this%g, this%l)
+        new%f = REAL(this%f)
+        new%g = this%g
+        new%l = this%l
 
     end function FGL_real_real
 
@@ -267,29 +328,11 @@ contains
     elemental type(FGL_t) function FGL_Div(this, that) result(new)
         class(FGL_t), intent(in) :: this, that
 
-        new = this%FGL_Mul(FGL_Pow_int(that, -1))
+        new = this%FGL_Mul(FGL_PowObjScalar_i1(that, -1_i1))
     end function FGL_Div
 
 
-    elemental type(FGL_t) function FGL_DivObjScalar(obj, value) result(new)
-        class(FGL_t), intent(in) :: obj
-        real(r8), intent(in) :: value
-
-        new = FGL_t(obj%f / value, obj%g / value, obj%l / value)
-    end function FGL_DivObjScalar
-
-
-    elemental type(FGL_t) function FGL_DivScalarObj(value, obj) result(new)
-        class(FGL_t), intent(in) :: obj
-        real(r8), intent(in) :: value
-        type(FGL_t) :: temp
-
-        temp = FGL_Pow_int(obj, -1)
-        new = FGL_t(value * temp%f, value * temp%g, value * temp%l)
-    end function FGL_DivScalarObj
-
-
-    pure subroutine FGL_Assign(this, that)
+    elemental subroutine FGL_Assign(this, that)
         class(FGL_t), intent(inout) :: this
         class(FGL_t), intent(in)   :: that
 
@@ -352,88 +395,31 @@ contains
     elemental type(FGL_t) function FGL_Neg(this) result(new)
         class(FGL_t), intent(in) :: this
 
-        new = FGL_t(- this%f, - this%g, - this%l)
+        new%f = -this%f
+        new%g = -this%g
+        new%l = -this%l
+
     end function FGL_Neg
-
-
-    elemental type(FGL_t) function FGL_AddObjScalar(obj, value) result(new)
-        class(FGL_t), intent(in) :: obj
-        real(r8), intent(in) :: value
-
-        new = FGL_t(obj%f + value, obj%g, obj%l)
-    end function FGL_AddObjScalar
-
-
-    elemental type(FGL_t) function FGL_AddScalarObj(value, obj) result(new)
-        real(r8), intent(in) :: value
-        class(FGL_t), intent(in) :: obj
-
-        new = FGL_t(value + obj%f, obj%g, obj%l)
-    end function FGL_AddScalarObj
 
 
     elemental type(FGL_t) function FGL_Add(this, that) result(new)
         class(FGL_t), intent(in) :: this, that
 
-        new = FGL_t(this%f + that%f, this%g + that%g, this%l + that%l)
+        new%f = this%f + that%f
+        new%g = this%g + that%g
+        new%l = this%l + that%l
+
     end function FGL_Add
-
-
-    elemental type(FGL_t) function FGL_Pow_real(this, n) result(new)
-        class(FGL_t), intent(in) :: this
-        real(r8), intent(in) :: n
-
-        new = FGL_t(this%f ** n, this%f ** (n-1) * n * this%g, &
-                n * ((n-1) * this%f ** (n-2) * DOT_PRODUCT(this%g, this%g) + this%f ** (n-1) * this%l))
-    end function FGL_Pow_real
-
-
-    elemental type(FGL_t) function FGL_Pow_int(this, n) result(new)
-        class(FGL_t), intent(in) :: this
-        integer, intent(in) :: n
-
-        new = FGL_t(this%f ** n, this%f ** (n-1) * n * this%g, &
-                n * ((n-1) * this%f ** (n-2) * DOT_PRODUCT(this%g, this%g) + this%f ** (n-1) * this%l))
-    end function FGL_Pow_int
-
-
-    elemental type(FGL_t) function FGL_SubObjScalar(obj, value) result(new)
-        class(FGL_t), intent(in) :: obj
-        real(r8), intent(in) :: value
-
-        new = FGL_t(obj%f - value, obj%g, obj%l)
-    end function FGL_SubObjScalar
-
-
-    elemental type(FGL_t) function FGL_SubScalarObj(value, obj) result(new)
-        real(r8), intent(in) :: value
-        class(FGL_t), intent(in) :: obj
-
-        new = FGL_t(value - obj%f, obj%g, obj%l)
-    end function FGL_SubScalarObj
 
 
     elemental type(FGL_t) function FGL_Sub(this, that) result(new)
         class(FGL_t), intent(in) :: this, that
 
-        new = FGL_t(this%f - that%f, this%g - that%g, this%l - that%l)
+        new%f = this%f - that%f
+        new%g = this%g - that%g
+        new%l = this%l - that%l
+
     end function FGL_Sub
-
-
-    elemental type(FGL_t) function FGL_MulObjScalar(obj, value) result(new)
-        class(FGL_t), intent(in) :: obj
-        real(r8), intent(in) :: value
-
-        new = FGL_t(obj%f * value, obj%g * value, obj%l * value)
-    end function FGL_MulObjScalar
-
-
-    elemental type(FGL_t) function FGL_MulScalarObj(value, obj) result(new)
-        real(r8), intent(in) :: value
-        class(FGL_t), intent(in) :: obj
-
-        new = FGL_t(value * obj%f, value * obj%g, value * obj%l)
-    end function FGL_MulScalarObj
 
 
     elemental type(FGL_t) function FGL_Mul(this, that) result(new)
@@ -447,7 +433,97 @@ contains
     elemental type(FGL_t) function FGL_MulSame(this, that) result(new)
         class(FGL_t), intent(in) :: this, that
 
-        new = FGL_t(this%f * that%f, this%f * that%g + that%f * this%g, &
-                this%l * that%f + that%l * this%f + 2 * DOT_PRODUCT(this%g, that%g))
+        new%f = this%f * that%f
+        new%g = this%f * that%g + that%f * this%g
+        new%l = this%l * that%f + that%l * this%f + 2 * DOT_PRODUCT(this%g, that%g)
+
     end function FGL_MulSame
+    
+    
+    elemental type(FGL_t) function FGL_Pow(this, that) result(new)
+        class(FGL_t), intent(in) :: this, that
+        real(r8) :: dotxy, dotxx
+        real(r8) :: dotyy, logval, frac
+
+        dotxy = DOT_PRODUCT(this%g, that%g)
+        dotxx = DOT_PRODUCT(this%g, this%g)
+        dotyy = DOT_PRODUCT(that%g, that%g)
+
+        logval = LOG(this%f)
+        frac = (that%f/this%f)
+        new%f = this%f ** that%f
+        new%g = new%f * (that%g * LOG(this%f) + (that%f / this%f) * this%g)
+        new%l = new%f * (dotyy * logval**2 + dotxx * frac**2 + 2 * frac * logval * dotxy +&
+                that%l * logval + 2 * dotxy / this%f - dotxx / this%f**2 + this%l * frac)
+
+    end function FGL_Pow
+
+#define _FGL true
+    ! single precision
+#define _F_TYPE FGL_t
+#define _F FGL
+#define _KIND r4
+#define _TYPE real(r4)
+#include "F_functions.inc"
+
+
+
+    ! double precision
+#define _F_TYPE FGL_t
+#define _F FGL
+#define _KIND r8
+#define _TYPE real(r8)
+#include "F_functions.inc"
+
+
+
+    ! quad precision
+#define _F_TYPE FGL_t
+#define _F FGL
+#define _KIND r16
+#define _TYPE real(r16)
+#include "F_functions.inc"
+
+
+
+    ! 8bit int
+#define _INT true
+#define _F_TYPE FGL_t
+#define _F FGL
+#define _KIND i1
+#define _TYPE integer(i1)
+#include "F_functions.inc"
+
+
+
+    ! 16bit int
+#define _INT true
+#define _F_TYPE FGL_t
+#define _F FGL
+#define _KIND i2
+#define _TYPE integer(i2)
+#include "F_functions.inc"
+
+
+
+    ! 32bit int
+#define _INT true
+#define _F_TYPE FGL_t
+#define _F FGL
+#define _KIND i4
+#define _TYPE integer(i4)
+#include "F_functions.inc"
+
+
+
+    ! 64bit int
+#define _INT true
+#define _F_TYPE FGL_t
+#define _F FGL
+#define _KIND i8
+#define _TYPE integer(i8)
+#include "F_functions.inc"
+
+
+#undef _FGL
 end module FGL_m
