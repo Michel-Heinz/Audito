@@ -23,7 +23,7 @@ Overloading the operators enables a very easy implementation of functions! The c
 
 We have two atoms, each with $x$, $y$, and $z$ coordinates. I define a position vector $\vec{x}$ as follows:
 
-$\vec{x} = (x_1, y_1, z_1, x_2, y_2, z_2)$
+$\vec{x} = \left(x_1, y_1, z_1, x_2, y_2, z_2\right)^\text{T}$
 
 Let's define a function $f(\vec{x})$, which depends on the positions of the atoms. The Gradient of this function $\nabla f(\vec{x})$ looks like this:
 
